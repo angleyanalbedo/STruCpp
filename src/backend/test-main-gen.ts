@@ -277,12 +277,16 @@ export function generateTestMain(
     }
   }
 
-  // Generate main() with --json flag support
+  // Generate main() with --json and --name flag support
   lines.push("int main(int argc, char* argv[]) {");
   lines.push("    bool json_mode = false;");
+  lines.push("    const char* name_filter = nullptr;");
   lines.push("    for (int i = 1; i < argc; i++) {");
   lines.push(
-    '        if (strcmp(argv[i], "--json") == 0) { json_mode = true; break; }',
+    '        if (strcmp(argv[i], "--json") == 0) { json_mode = true; }',
+  );
+  lines.push(
+    '        else if (strcmp(argv[i], "--name") == 0 && i + 1 < argc) { name_filter = argv[++i]; }',
   );
   lines.push("    }");
   lines.push("");
@@ -301,6 +305,7 @@ export function generateTestMain(
     const [fileName, regs] = [...fileGroups.entries()][0]!;
     lines.push(`    strucpp::TestRunner runner("${escapeString(fileName)}");`);
     lines.push("    runner.set_json_mode(json_mode);");
+    lines.push("    if (name_filter) runner.set_name_filter(name_filter);");
     for (const reg of regs) {
       lines.push(
         `    runner.add("${escapeString(reg.name)}", ${reg.funcName});`,
@@ -316,6 +321,9 @@ export function generateTestMain(
         `        strucpp::TestRunner runner("${escapeString(fileName)}");`,
       );
       lines.push("        runner.set_json_mode(json_mode);");
+      lines.push(
+        "        if (name_filter) runner.set_name_filter(name_filter);",
+      );
       for (const reg of regs) {
         lines.push(
           `        runner.add("${escapeString(reg.name)}", ${reg.funcName});`,

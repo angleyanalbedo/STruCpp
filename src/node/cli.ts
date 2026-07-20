@@ -36,6 +36,7 @@ import {
   rmSync,
   existsSync,
   statSync,
+  readdirSync,
 } from "fs";
 import { resolve, basename, dirname, join, relative, sep } from "path";
 import { tmpdir, platform } from "os";
@@ -90,6 +91,8 @@ interface CLIOptions {
   decompileLib?: string;
   importLib?: string;
   test: string[];
+  testMode: boolean;
+  testName?: string | undefined;
   defines: Record<string, number>;
 }
 
@@ -156,6 +159,8 @@ function parseArgs(args: string[]): CLIOptions {
     noSource: false,
     builtin: false,
     test: [],
+    testMode: false,
+    testName: undefined,
     defines: {},
   };
 
@@ -270,7 +275,8 @@ function parseArgs(args: string[]): CLIOptions {
         }
       }
     } else if (arg === "--test") {
-      // Collect all following arguments that don't start with '-' as test files
+      // Collect all following arguments that don't start with '-' as test files.
+      // If no files follow, auto-scan tests/ directory relative to each input.
       i++;
       while (
         i < args.length &&
@@ -280,8 +286,17 @@ function parseArgs(args: string[]): CLIOptions {
         options.test.push(args[i]!);
         i++;
       }
+      if (options.test.length === 0) {
+        options.testMode = true;
+      }
       // Back up one so the outer loop increment doesn't skip anything
       i--;
+    } else if (arg === "--test-name") {
+      i++;
+      const nextArg = args[i];
+      if (nextArg !== undefined) {
+        options.testName = nextArg;
+      }
     } else if (arg !== undefined && !arg.startsWith("-")) {
       options.inputs.push(arg);
     }
@@ -330,8 +345,10 @@ CODESYS import:
                             Requires --lib-name; -o sets output dir (default: cwd)
 
 Testing:
-  --test <file> [file2...]   Run tests from test file(s) against source files
-                             (must come after -o if used)
+  --test <file> [file2...]   Run tests from test file(s) against source files;
+                             if no files given, auto-scans tests/ directory
+  --test-name <pattern>      Only run tests whose name contains pattern
+                             (case-insensitive, used with --test)
 
 Examples:
   strucpp program.st -o program.cpp
@@ -775,8 +792,12 @@ function runTestMode(options: CLIOptions): void {
 
     // 8. Execute test binary and display results
     let exitCode = 0;
+    const testArgs: string[] = [];
+    if (options.testName) {
+      testArgs.push("--name", options.testName);
+    }
     try {
-      const output = execFileSync(binaryPath, [], {
+      const output = execFileSync(binaryPath, testArgs, {
         encoding: "utf-8",
         timeout: 30000,
       });
@@ -987,6 +1008,23 @@ async function main(): Promise<void> {
   }
 
   // Test mode
+  if (options.testMode && options.test.length === 0) {
+    // Auto-scan tests/ directory relative to each input file
+    for (const input of options.inputs) {
+      const dir = resolve(dirname(input), "tests");
+      if (existsSync(dir)) {
+        for (const entry of readdirSync(dir).sort()) {
+          if (entry.endsWith(".st")) {
+            options.test.push(join(dir, entry));
+          }
+        }
+      }
+    }
+    if (options.test.length === 0) {
+      console.error("Error: No test files found in tests/ directory");
+      process.exit(1);
+    }
+  }
   if (options.test.length > 0) {
     runTestMode(options);
     return;

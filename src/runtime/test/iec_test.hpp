@@ -18,6 +18,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <cctype>
 #include <cmath>
 #include <cstdint>
 #include <exception>
@@ -335,6 +336,25 @@ struct TestContext {
 // TestRunner
 // ============================================================================
 
+/**
+ * Case-insensitive substring match. Returns true if `str` contains `substr`
+ * (ignoring ASCII case) when `substr` is non-null and non-empty; otherwise
+ * returns true (no filter = match all).
+ */
+inline bool test_name_matches(const char* str, const char* substr) {
+    if (!substr || substr[0] == '\0') return true;
+    // Walk through `str` looking for a case-insensitive match
+    for (; *str; str++) {
+        const char* s = str;
+        const char* p = substr;
+        while (*s && *p && std::tolower(static_cast<unsigned char>(*s)) == std::tolower(static_cast<unsigned char>(*p))) {
+            s++; p++;
+        }
+        if (!*p) return true; // full substring matched
+    }
+    return false;
+}
+
 using TestFunc = std::function<bool(TestContext&)>;
 
 struct TestCaseEntry {
@@ -354,7 +374,8 @@ struct TestCaseResult {
 
 /**
  * Test runner that orchestrates test execution and reports results.
- * Supports text (default) and JSON (--json) output modes.
+ * Supports text (default) and JSON (--json) output modes, and
+ * name-based filtering (--name <pattern>).
  */
 class TestRunner {
     const char* test_file_;
@@ -362,11 +383,14 @@ class TestRunner {
     int passed_ = 0;
     int failed_ = 0;
     bool json_mode_ = false;
+    const char* name_filter_ = nullptr;
 
 public:
     explicit TestRunner(const char* test_file) : test_file_(test_file) {}
 
     void set_json_mode(bool enabled) { json_mode_ = enabled; }
+
+    void set_name_filter(const char* pattern) { name_filter_ = pattern; }
 
     void add(const char* name, TestFunc func) {
         tests_.push_back({name, std::move(func)});
@@ -380,11 +404,17 @@ public:
     }
 
 private:
+    bool should_run(const char* name) const {
+        return test_name_matches(name, name_filter_);
+    }
+
     int run_text() {
         printf("STruC++ Test Runner v1.0\n\n");
         printf("%s\n", test_file_);
 
         for (auto& tc : tests_) {
+            if (!should_run(tc.name)) continue;
+
             TestContext ctx;
             ctx.test_file = test_file_;
             __CURRENT_TIME_NS = 0;  // Reset scan-cycle time for each test
@@ -418,6 +448,8 @@ private:
         std::vector<TestCaseResult> results;
 
         for (auto& tc : tests_) {
+            if (!should_run(tc.name)) continue;
+
             TestContext ctx;
             ctx.test_file = test_file_;
             ctx.json_mode = true;

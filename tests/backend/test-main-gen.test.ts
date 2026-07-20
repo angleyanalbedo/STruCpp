@@ -830,7 +830,7 @@ describe("Test Main Generator", () => {
   });
 
   describe("JSON output support", () => {
-    it("should generate --json flag parsing in main()", () => {
+    it("should generate --json and --name flag parsing in main()", () => {
       const testFile = makeTestFile("test.st", [
         {
           name: "json test",
@@ -866,6 +866,12 @@ describe("Test Main Generator", () => {
       expect(code).toContain("--json");
       // Should declare json_mode variable
       expect(code).toContain("json_mode");
+      // Should declare name_filter variable
+      expect(code).toContain("name_filter");
+      // Should check for --name flag
+      expect(code).toContain("--name");
+      // Should call set_name_filter when flag is found
+      expect(code).toContain("set_name_filter");
       // Should call set_json_mode when flag is found
       expect(code).toContain("set_json_mode");
     });
