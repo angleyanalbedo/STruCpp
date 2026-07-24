@@ -10,7 +10,13 @@
     "declaration": true,
     "sourceMap": true,
     "esModuleInterop": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@openplc-ladder/*": [
+        "client/src/plcopen/webview/openplc-ladder/*"
+      ]
+    }
   },
   "include": [
     "client/src/**/*",

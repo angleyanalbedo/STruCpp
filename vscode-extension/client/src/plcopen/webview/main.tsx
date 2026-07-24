@@ -25,15 +25,16 @@ import {
   ReactFlow,
   ReactFlowProvider,
   addEdge,
+  applyNodeChanges,
   useEdgesState,
   useNodesState,
-  type Connection,
   type Edge,
   type Node,
   type NodeProps,
+  type ReactFlowInstance,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import type {
@@ -43,14 +44,29 @@ import type {
   OpenPlcDiagramDocument,
 } from "../openplc-diagram-types.js";
 import { BlockVisual, CoilVisual, ContactVisual, VariableVisual } from "./openplc-visuals.js";
+import type { RungLadderState } from "./openplc-ladder/support.js";
+import {
+  addNewElement,
+  removeElements,
+} from "./openplc-ladder/ladder-utils/elements/index.js";
+import {
+  onElementDragOver,
+  onElementDragStart,
+  onElementDrop,
+} from "./openplc-ladder/ladder-utils/elements/drag-n-drop/index.js";
+import {
+  removePlaceholderElements,
+  renderPlaceholderElements,
+  searchNearestPlaceholder,
+} from "./openplc-ladder/ladder-utils/elements/placeholder/index.js";
+import { nodesBuilder } from "./openplc-ladder/atoms/node-builders.js";
+import { buildEdge } from "./openplc-ladder/ladder-utils/edges.js";
 
 declare global {
   interface Window {
     __OPENPLC_MODEL__?: { model?: OpenPlcDiagramDocument; errors?: string[]; fileName?: string };
   }
 }
-
-type Language = "LD" | "FBD";
 
 const css = `
 :root{color-scheme:light dark;--brand:#0464fb;--line:#5b6573}
@@ -80,6 +96,8 @@ table{width:100%;border-collapse:collapse}th,td{height:30px;border-right:1px sol
 .openplc-instance{position:absolute;bottom:calc(100% + 2px);width:100%;text-align:center;font-size:11px}.openplc-block-name{position:absolute;top:7px;width:100%;text-align:center;font-size:11px}.openplc-block-row{position:absolute;left:6px;right:6px;display:flex;justify-content:space-between;font-size:10px;line-height:18px}
 .openplc-variable{display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid var(--line);border-radius:6px;background:var(--vscode-editorWidget-background);font-size:11px}.openplc-variable span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .power-rail{width:4px;height:70px;background:currentColor}.empty{display:grid;height:100%;place-items:center;color:var(--vscode-descriptionForeground)}.error{padding:6px 10px;color:var(--vscode-errorForeground)}
+.parallel-junction{width:4px;height:2px;background:currentColor}.placeholder-node{width:10px;height:10px;border:1px dashed var(--brand);border-radius:2px;background:#0464fb22}.parallel-placeholder{transform:rotate(45deg)}
+.tool-button[draggable=true]{cursor:grab}
 `;
 
 function valueOf(value: unknown): string {
@@ -90,45 +108,155 @@ function nodeName(node: DiagramNode): string {
   return valueOf((node.data.variable as Record<string, unknown> | undefined)?.name);
 }
 
+function diagramNodeFromData(data: Record<string, unknown>, fallbackType: string): DiagramNode {
+  const original = data.__diagramNode as DiagramNode | undefined;
+  return {
+    ...(original || {
+      id: valueOf(data.id),
+      type: fallbackType,
+      position: { x: 0, y: 0 },
+      raw: {},
+      data: {},
+    }),
+    type: original?.type || fallbackType,
+    width: Number(data.__width ?? original?.width) || undefined,
+    height: Number(data.__height ?? original?.height) || undefined,
+    data,
+  };
+}
+
 function PortHandles({ node }: { node: DiagramNode }) {
   const inputs = Array.isArray(node.data.inputHandles) ? node.data.inputHandles as Array<Record<string, unknown>> : [];
   const outputs = Array.isArray(node.data.outputHandles) ? node.data.outputHandles as Array<Record<string, unknown>> : [];
+  const positionOf = (port: Record<string, unknown>, fallback: Position): Position => {
+    const position = valueOf(port.position).toLowerCase();
+    if (position === "left") return Position.Left;
+    if (position === "right") return Position.Right;
+    if (position === "top") return Position.Top;
+    if (position === "bottom") return Position.Bottom;
+    return fallback;
+  };
+  const styleOf = (port: Record<string, unknown>): React.CSSProperties => {
+    const saved = port.style && typeof port.style === "object"
+      ? port.style as React.CSSProperties
+      : {};
+    const relative = port.relPosition as Record<string, unknown> | undefined;
+    return {
+      ...saved,
+      ...(saved.top === undefined && relative?.y !== undefined ? { top: Number(relative.y) } : {}),
+      ...(saved.left === undefined && relative?.x !== undefined ? { left: Number(relative.x) } : {}),
+    };
+  };
   return <>
-    {inputs.map((port, index) => <Handle key={`i${index}`} id={valueOf(port.id) || `input-${index}`} type="target" position={Position.Left} style={{ top: Number((port.relPosition as Record<string, unknown> | undefined)?.y ?? port.style && (port.style as Record<string, unknown>).top ?? 20) }} />)}
-    {outputs.map((port, index) => <Handle key={`o${index}`} id={valueOf(port.id) || `output-${index}`} type="source" position={Position.Right} style={{ top: Number((port.relPosition as Record<string, unknown> | undefined)?.y ?? port.style && (port.style as Record<string, unknown>).top ?? 20) }} />)}
+    {inputs.map((port, index) => <Handle key={`i${index}`} id={valueOf(port.id) || `input-${index}`} type="target" position={positionOf(port, Position.Left)} style={styleOf(port)} />)}
+    {outputs.map((port, index) => <Handle key={`o${index}`} id={valueOf(port.id) || `output-${index}`} type="source" position={positionOf(port, Position.Right)} style={styleOf(port)} />)}
   </>;
 }
 
 function ContactNode({ data }: NodeProps) {
-  const node = data as unknown as DiagramNode;
+  const node = diagramNodeFromData(data, "contact");
   return <div className="contact-node" style={{ width: node.width || 48, height: node.height || 32 }}><PortHandles node={node}/><ContactVisual variant={valueOf(node.data.variant)} width={node.width || 48} height={node.height || 32}/><div className="node-name">{nodeName(node) || "contact"}</div></div>;
 }
 function CoilNode({ data }: NodeProps) {
-  const node = data as unknown as DiagramNode;
+  const node = diagramNodeFromData(data, "coil");
   return <div className="coil-node" style={{ width: node.width || 48, height: node.height || 32 }}><PortHandles node={node}/><CoilVisual variant={valueOf(node.data.variant)} width={node.width || 48} height={node.height || 32}/><div className="node-name">{nodeName(node) || "coil"}</div></div>;
 }
 function BlockNode({ data }: NodeProps) {
-  const node = data as unknown as DiagramNode;
+  const node = diagramNodeFromData(data, "block");
   const variant = (node.data.variant ?? {}) as Record<string, unknown>;
   const variables = Array.isArray(variant.variables) ? variant.variables as Array<Record<string, unknown>> : [];
   return <div className="block-node-shell" style={{ width: node.width || 150, height: node.height || 90 }}><PortHandles node={node}/><BlockVisual name={valueOf(variant.name) || "TON"} instance={nodeName(node)} inputs={variables.filter(v => v.class === "input").map(v => valueOf(v.name))} outputs={variables.filter(v => v.class === "output").map(v => valueOf(v.name))} width={node.width || 150} height={node.height || 90}/></div>;
 }
 function VariableNode({ data }: NodeProps) {
-  const node = data as unknown as DiagramNode;
+  const node = diagramNodeFromData(data, "variable");
   return <div style={{ width: node.width || 90, height: node.height || 34 }}><PortHandles node={node}/><VariableVisual name={nodeName(node) || "variable"} width={node.width || 90} height={node.height || 34}/></div>;
 }
 function RailNode({ data }: NodeProps) {
-  const node = data as unknown as DiagramNode;
+  const node = diagramNodeFromData(data, "powerRail");
   return <div className="power-rail" style={{ height: node.height || 70 }}><PortHandles node={node}/></div>;
 }
+function ParallelNode({ data }: NodeProps) {
+  const node = diagramNodeFromData(data, "parallel");
+  return <div className="parallel-junction" style={{ width: node.width || 4, height: node.height || 2 }}><PortHandles node={node}/></div>;
+}
+function PlaceholderNode({ data }: NodeProps) {
+  const node = data as unknown as { type?: string };
+  return <div className={`placeholder-node ${node.type === "parallelPlaceholder" ? "parallel-placeholder" : ""}`}/>;
+}
 
-const nodeTypes = { contact: ContactNode, coil: CoilNode, block: BlockNode, functionBlock: BlockNode, variable: VariableNode, "input-variable": VariableNode, "output-variable": VariableNode, "inout-variable": VariableNode, powerRail: RailNode };
+const nodeTypes = { contact: ContactNode, coil: CoilNode, block: BlockNode, functionBlock: BlockNode, variable: VariableNode, "input-variable": VariableNode, "output-variable": VariableNode, "inout-variable": VariableNode, powerRail: RailNode, parallel: ParallelNode, placeholder: PlaceholderNode, parallelPlaceholder: PlaceholderNode };
 
 function toFlowNodes(nodes: DiagramNode[], draggable = true): Node[] {
-  return nodes.map(node => ({ id: node.id, type: node.type in nodeTypes ? node.type : "variable", position: node.position, data: node as unknown as Record<string, unknown>, draggable, selectable: true }));
+  return nodes.map(node => ({
+    id: node.id,
+    type: node.type in nodeTypes ? node.type : "variable",
+    position: node.position,
+    width: node.width,
+    height: node.height,
+    data: {
+      ...node.data,
+      __diagramNode: node,
+      __width: node.width,
+      __height: node.height,
+    },
+    draggable,
+    selectable: true,
+  }));
 }
 function toFlowEdges(edges: DiagramRung["edges"]): Edge[] {
   return edges.map(edge => ({ ...edge, type: "smoothstep" }));
+}
+
+function toLadderRung(rung: DiagramRung): RungLadderState {
+  const rawBounds = Array.isArray(rung.raw.defaultBounds) ? rung.raw.defaultBounds : [1530, 200];
+  const rawViewport = Array.isArray(rung.raw.reactFlowViewport) ? rung.raw.reactFlowViewport : rawBounds;
+  return {
+    id: rung.id,
+    comment: rung.comment,
+    nodes: toFlowNodes(rung.nodes).map(node => ({
+      ...node,
+      draggable: node.type !== "powerRail" && node.type !== "parallel",
+      data: { ...node.data, draggable: node.type !== "powerRail" && node.type !== "parallel" },
+    })),
+    edges: toFlowEdges(rung.edges),
+    selectedNodes: [],
+    defaultBounds: [Number(rawBounds[0]) || 1530, Number(rawBounds[1]) || 200],
+    reactFlowViewport: [Number(rawViewport[0]) || 1530, Number(rawViewport[1]) || 200],
+    handleBranches: Array.isArray(rung.raw.handleBranches)
+      ? rung.raw.handleBranches as RungLadderState["handleBranches"]
+      : [],
+  };
+}
+
+function fromLadderRung(rung: RungLadderState, original: DiagramRung): DiagramRung {
+  return {
+    ...original,
+    nodes: removePlaceholderElements(rung.nodes).map(node => {
+      const originalNode = node.data.__diagramNode as DiagramNode | undefined;
+      const { __diagramNode: _diagramNode, __width: _width, __height: _height, ...data } = node.data;
+      return ({
+      ...(originalNode || {
+        id: node.id,
+        type: node.type || "variable",
+        raw: {},
+        data,
+      }),
+      id: node.id,
+      type: node.type || "variable",
+      position: node.position,
+      width: node.width || originalNode?.width,
+      height: node.height || originalNode?.height,
+      data,
+    })}),
+    edges: rung.edges.map(edge => ({
+      id: edge.id,
+      source: edge.source,
+      target: edge.target,
+      sourceHandle: edge.sourceHandle || undefined,
+      targetHandle: edge.targetHandle || undefined,
+      raw: {},
+    })),
+  };
 }
 
 function VariablesEditor({ variables, onChange }: { variables: DiagramVariable[]; onChange: (next: DiagramVariable[]) => void }) {
@@ -161,14 +289,85 @@ function VariablesEditor({ variables, onChange }: { variables: DiagramVariable[]
   </div>;
 }
 
-function RungBody({ rung, onChange }: { rung: DiagramRung; onChange: (rung: DiagramRung) => void }) {
-  const [nodes, setNodes, onNodesChange] = useNodesState(toFlowNodes(rung.nodes));
-  const [edges, setEdges, onEdgesChange] = useEdgesState(toFlowEdges(rung.edges));
-  const connect = useCallback((connection: Connection) => setEdges(current => addEdge({ ...connection, type: "smoothstep" }, current)), [setEdges]);
-  React.useEffect(() => {
-    onChange({ ...rung, nodes: nodes.map(node => ({ ...(node.data as unknown as DiagramNode), position: node.position })), edges: edges.map(edge => ({ id: edge.id, source: edge.source, target: edge.target, sourceHandle: edge.sourceHandle || undefined, targetHandle: edge.targetHandle || undefined, raw: {} })) });
-  }, [nodes, edges]);
-  return <div className="rung-body"><ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onConnect={connect} fitView snapToGrid snapGrid={[16,16]} defaultEdgeOptions={{ type: "smoothstep" }}><Background gap={16} size={1}/><Controls/></ReactFlow></div>;
+function RungBody({ rung, onChange }: { rung: DiagramRung; onChange: (next: DiagramRung) => void }) {
+  const [local, setLocal] = useState<RungLadderState>(() => toLadderRung(rung));
+  const instance = useRef<ReactFlowInstance | null>(null);
+  const beforeDrag = useRef<RungLadderState>(local);
+  const publish = (next: RungLadderState) => {
+    setLocal(next);
+    onChange(fromLadderRung(next, rung));
+  };
+  const selectNearest = (clientX: number, clientY: number) => {
+    if (!instance.current) return;
+    const closest = searchNearestPlaceholder(local, instance.current, { x: clientX, y: clientY });
+    if (!closest) return;
+    setLocal(current => ({ ...current, nodes: current.nodes.map(node => ({ ...node, selected: node.id === closest.id })) }));
+  };
+  const addDraggedElement = (elementType: string) => {
+    const result = addNewElement(local, { elementType });
+    publish({ ...local, nodes: result.nodes, edges: result.edges, handleBranches: result.handleBranches || local.handleBranches });
+  };
+  return <div
+    className="rung-body"
+    onDragEnter={event => {
+      const type = event.dataTransfer.getData("application/openplc-ladder-element");
+      if (!type) return;
+      event.preventDefault();
+      setLocal(current => ({ ...current, nodes: renderPlaceholderElements(current) }));
+    }}
+    onDragOver={event => {
+      event.preventDefault();
+      selectNearest(event.clientX, event.clientY);
+    }}
+    onDragLeave={event => {
+      if (event.currentTarget.contains(event.relatedTarget as globalThis.Node | null)) return;
+      setLocal(current => ({ ...current, nodes: removePlaceholderElements(current.nodes) }));
+    }}
+    onDrop={event => {
+      event.preventDefault();
+      const type = event.dataTransfer.getData("application/openplc-ladder-element");
+      if (type) addDraggedElement(type);
+    }}
+  ><ReactFlow
+    nodes={local.nodes}
+    edges={local.edges}
+    nodeTypes={nodeTypes}
+    onInit={flow => { instance.current = flow; }}
+    onNodesChange={changes => setLocal(current => ({ ...current, nodes: applyNodeChanges(changes, current.nodes) }))}
+    onNodeDragStart={(_event, node) => {
+      beforeDrag.current = local;
+      const result = onElementDragStart(local, node);
+      setLocal(current => ({ ...current, nodes: result.nodes, edges: result.edges }));
+    }}
+    onNodeDrag={(event) => {
+      if ("clientX" in event) {
+        const closest = onElementDragOver(local, instance.current!, { x: event.clientX, y: event.clientY });
+        if (closest) setLocal(current => ({ ...current, nodes: current.nodes.map(node => ({ ...node, selected: node.id === closest.id })) }));
+      }
+    }}
+    onNodeDragStop={(_event, node) => {
+      const result = onElementDrop(local, beforeDrag.current, node);
+      publish({ ...beforeDrag.current, nodes: result.nodes, edges: result.edges, handleBranches: result.handleBranches || beforeDrag.current.handleBranches });
+    }}
+    onNodesDelete={nodes => {
+      const result = removeElements(local, nodes);
+      publish({
+        ...local,
+        nodes: result.nodes,
+        edges: result.edges,
+        handleBranches: result.handleBranches || local.handleBranches,
+        selectedNodes: [],
+      });
+    }}
+    nodesConnectable={false}
+    panOnDrag={false}
+    panOnScroll={false}
+    zoomOnScroll={false}
+    zoomOnPinch={false}
+    zoomOnDoubleClick={false}
+    fitView
+    defaultEdgeOptions={{ type: "smoothstep" }}
+  ><Background gap={16} size={1}/></ReactFlow></div>;
 }
 
 function SortableRung({ rung, index, count, update, duplicate, remove }: { rung: DiagramRung; index: number; count: number; update: (r: DiagramRung) => void; duplicate: () => void; remove: () => void }) {
@@ -185,7 +384,23 @@ function SortableRung({ rung, index, count, update, duplicate, remove }: { rung:
 }
 
 function newRung(_index: number): DiagramRung {
-  return { id: crypto.randomUUID(), comment: "", nodes: [], edges: [], raw: {} };
+  const id = crypto.randomUUID();
+  const left = nodesBuilder.powerRail({ id: `left-rail-${id}`, posX: 0, posY: 80, connector: "right", handleX: 3, handleY: 100 });
+  const right = nodesBuilder.powerRail({ id: `right-rail-${id}`, posX: 800, posY: 80, connector: "left", handleX: 800, handleY: 100 });
+  const edge = buildEdge(left.id, right.id, {
+    sourceHandle: left.data.outputConnector?.id,
+    targetHandle: right.data.inputConnector?.id,
+  });
+  const nodes = [left, right].map(node => ({
+    id: node.id,
+    type: node.type,
+    position: node.position,
+    width: node.width,
+    height: node.height,
+    data: node.data,
+    raw: {},
+  }));
+  return { id, comment: "", nodes, edges: [{ ...edge, sourceHandle: edge.sourceHandle || undefined, targetHandle: edge.targetHandle || undefined, raw: {} }], raw: {} };
 }
 
 function LadderEditor({ rungs, onChange }: { rungs: DiagramRung[]; onChange: (r: DiagramRung[]) => void }) {
@@ -195,10 +410,18 @@ function LadderEditor({ rungs, onChange }: { rungs: DiagramRung[]; onChange: (r:
     const from = rungs.findIndex(r => r.id === active.id), to = rungs.findIndex(r => r.id === over.id);
     onChange(arrayMove(rungs, from, to));
   };
-  return <DndContext sensors={sensors} collisionDetection={closestCenter} modifiers={[restrictToVerticalAxis]} onDragEnd={dragEnd}><SortableContext items={rungs.map(r => r.id)} strategy={verticalListSortingStrategy}><div className="rung-list">
+  const dragElement = (elementType: "contact" | "coil") => (event: React.DragEvent<HTMLButtonElement>) => {
+    event.dataTransfer.setData("application/openplc-ladder-element", elementType);
+    event.dataTransfer.effectAllowed = "move";
+  };
+  return <><div className="graph-toolbar">
+    <button className="tool-button" draggable onDragStart={dragElement("contact")}>Contact</button>
+    <button className="tool-button" draggable onDragStart={dragElement("coil")}>Coil</button>
+    <span className="spacer"/><span>Drag an element onto a highlighted ladder position</span>
+  </div><DndContext sensors={sensors} collisionDetection={closestCenter} modifiers={[restrictToVerticalAxis]} onDragEnd={dragEnd}><SortableContext items={rungs.map(r => r.id)} strategy={verticalListSortingStrategy}><div className="rung-list">
     {rungs.map((rung, index) => <SortableRung key={rung.id} rung={rung} index={index} count={rungs.length} update={next => onChange(rungs.map(r => r.id === rung.id ? next : r))} duplicate={() => onChange([...rungs.slice(0,index+1), { ...rung, id: crypto.randomUUID(), nodes: rung.nodes.map(n => ({...n,id:crypto.randomUUID()})) }, ...rungs.slice(index+1)])} remove={() => onChange(rungs.filter(r => r.id !== rung.id))}/>)}
     <button className="create-rung" onClick={() => onChange([...rungs, newRung(rungs.length)])}>＋ Add rung</button>
-  </div></SortableContext></DndContext>;
+  </div></SortableContext></DndContext></>;
 }
 
 function createNode(type: "variable" | "block"): Node {
@@ -216,12 +439,12 @@ function FbdEditor({ initial }: { initial: DiagramRung }) {
 function App() {
   const payload = window.__OPENPLC_MODEL__;
   const source = payload?.model;
-  const [language, setLanguage] = useState<Language>(source?.kind || "LD");
+  const language = source?.kind || "LD";
   const [variables, setVariables] = useState<DiagramVariable[]>(source?.variables || []);
   const [rungs, setRungs] = useState<DiagramRung[]>(source?.rungs.length ? source.rungs : [newRung(0)]);
   const fbdRung = useMemo(() => source?.rungs[0] || newRung(0), []);
   return <ReactFlowProvider><div className="app"><style>{css}</style>
-    <header className="topbar"><strong>{source?.name || payload?.fileName || "MemoryPOU"}</strong><span>POU · {language}</span><div className="tabs"><button className={language === "LD" ? "active" : ""} onClick={() => setLanguage("LD")}>LD</button><button className={language === "FBD" ? "active" : ""} onClick={() => setLanguage("FBD")}>FBD</button></div></header>
+    <header className="topbar"><strong>{source?.name || payload?.fileName || "MemoryPOU"}</strong><span>POU · {language}</span></header>
     {(payload?.errors || []).map(error => <div className="error" key={error}>{error}</div>)}
     <PanelGroup direction="vertical" className="editor-panels">
       <Panel defaultSize={27} minSize={15} collapsible collapsedSize={0}><div className="panel"><VariablesEditor variables={variables} onChange={setVariables}/></div></Panel>
