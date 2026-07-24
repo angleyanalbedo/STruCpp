@@ -51,6 +51,18 @@ g++ -std=c++17 -Istrucpp/runtime/include counter.cpp -o counter
 strucpp adder.st --test test_adder.st
 ```
 
+Run only matching tests by name:
+
+```bash
+strucpp adder.st --test test_adder.st --test-name "addition"
+```
+
+Auto-discover all `tests/*.st` files in a directory:
+
+```bash
+strucpp adder.st --test
+```
+
 ```
 STruC++ Test Runner v1.0
 

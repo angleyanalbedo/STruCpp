@@ -176,6 +176,34 @@ The mock is scoped to the current test -- the real function is restored for the 
 | `MOCK_VERIFY_CALLED(instance)` | Assert the mocked FB was invoked at least once |
 | `MOCK_VERIFY_CALL_COUNT(instance, n)` | Assert exact invocation count |
 
+## Filtering Tests
+
+Run only tests whose names match a substring pattern:
+
+```bash
+strucpp counter.st --test test_counter.st --test-name "increment"
+```
+
+```
+test_counter.st
+  [PASS] increments on each call
+
+-----------------------------------------
+1 tests, 1 passed, 0 failed
+```
+
+The match is case-insensitive and checks if the filter string appears anywhere in the test name. For example, `--test-name "timer"` would match any test with "timer" in its name.
+
+### Auto-Scan Test Files
+
+If you omit the test file path, `--test` auto-discovers all `tests/*.st` files relative to the source file:
+
+```bash
+strucpp counter.st --test
+```
+
+This scans `counter.st/tests/` and runs every `.st` file found. The output shows each file and its results.
+
 ## How It Works
 
 The `--test` mode:

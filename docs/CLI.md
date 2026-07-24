@@ -87,6 +87,18 @@ strucpp source.st --test test1.st test2.st    # Multiple test files
 
 Compiles source and test files, generates a C++ test runner, builds and executes it. Exit code reflects test results (0 = all passed).
 
+Auto-discover test files in a `tests/` directory:
+
+```bash
+strucpp source.st --test
+```
+
+Filter by test name (case-insensitive substring match):
+
+```bash
+strucpp source.st --test tests.st --test-name "increment"
+```
+
 ### Compile Library
 
 Compile ST sources into a `.stlib` archive:
@@ -144,14 +156,20 @@ Format is auto-detected. Extracts ST source from the binary/ZIP format, compiles
 
 ### Compilation
 
-| Flag                  | Description                                                   |
-| --------------------- | ------------------------------------------------------------- |
-| `--build`             | Build interactive REPL binary after compilation               |
-| `--gpp <path>`        | Custom g++ path (default: `g++`)                              |
-| `--cc <path>`         | Custom C compiler path (default: `cc`)                        |
-| `--cxx-flags <flags>` | Extra flags passed to g++ (supports quoted paths)             |
-| `-D NAME=VALUE`       | Define global constant (repeatable, emits `constexpr size_t`) |
-| `-d, --debug`         | Enable debug output                                           |
+| Flag                      | Description                                                   |
+| ------------------------- | ------------------------------------------------------------- |
+| `--build`                 | Build interactive REPL binary after compilation               |
+| `--gpp <path>`            | Custom g++ path (default: `g++`)                              |
+| `--cc <path>`             | Custom C compiler path (default: `cc`)                        |
+| `--cxx-flags <flags>`     | Extra flags passed to g++ (supports quoted paths)             |
+| `-D NAME=VALUE`           | Define global constant (repeatable, emits `constexpr size_t`) |
+| `-d, --debug`             | Enable debug output                                           |
+
+### Test Options
+
+| Flag                      | Description                                                          |
+| ------------------------- | -------------------------------------------------------------------- |
+| `--test-name <pattern>`   | Filter tests by name (case-insensitive substring match, repeatable)  |
 
 ### Info
 
@@ -199,6 +217,12 @@ strucpp --compile-lib src/mylib/ -o libs/ --lib-name my-lib --lib-version 2.0.0
 
 # Run tests
 strucpp counter.st --test test_counter.st
+
+# Run tests with name filter
+strucpp counter.st --test test_counter.st --test-name "increment"
+
+# Auto-discover test files
+strucpp counter.st --test
 
 # Import CODESYS library with dependencies
 strucpp --import-lib oscat.library -o libs/ --lib-name oscat -L libs/
