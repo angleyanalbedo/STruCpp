@@ -50,6 +50,43 @@
           ".plcopen"
         ],
         "configuration": "./language-configuration.json"
+      },
+      {
+        "id": "openplc-ld",
+        "aliases": [
+          "OpenPLC Ladder Diagram",
+          "LD"
+        ],
+        "extensions": [
+          ".ld"
+        ],
+        "configuration": "./language-configuration.json"
+      },
+      {
+        "id": "openplc-fbd",
+        "aliases": [
+          "OpenPLC Function Block Diagram",
+          "FBD"
+        ],
+        "extensions": [
+          ".fbd"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "customEditors": [
+      {
+        "viewType": "strucpp.openplcDiagram",
+        "displayName": "OpenPLC LD/FBD Diagram",
+        "selector": [
+          {
+            "filenamePattern": "*.ld"
+          },
+          {
+            "filenamePattern": "*.fbd"
+          }
+        ],
+        "priority": "default"
       }
     ],
     "grammars": [
@@ -216,7 +253,9 @@
       "properties": {
         "strucpp.libraryPaths": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "default": [],
           "description": "Additional .stlib library search paths"
         },
@@ -247,7 +286,9 @@
         },
         "strucpp.globalConstants": {
           "type": "object",
-          "additionalProperties": { "type": "number" },
+          "additionalProperties": {
+            "type": "number"
+          },
           "default": {},
           "description": "Global constants passed to the compiler (-D NAME=VALUE)"
         },
@@ -289,7 +330,9 @@
       {
         "type": "strucpp",
         "label": "STruC++ Debug",
-        "languages": ["structured-text"],
+        "languages": [
+          "structured-text"
+        ],
         "configurationAttributes": {
           "launch": {
             "properties": {
@@ -299,9 +342,13 @@
               },
               "args": {
                 "type": "array",
-                "items": { "type": "string" },
+                "items": {
+                  "type": "string"
+                },
                 "description": "Arguments to pass to the program",
-                "default": ["--cyclic"]
+                "default": [
+                  "--cyclic"
+                ]
               },
               "cwd": {
                 "type": "string",
@@ -324,7 +371,9 @@
             "type": "strucpp",
             "request": "launch",
             "name": "Debug ST Program",
-            "args": ["--cyclic"]
+            "args": [
+              "--cyclic"
+            ]
           }
         ],
         "configurationSnippets": [
@@ -335,7 +384,9 @@
               "type": "strucpp",
               "request": "launch",
               "name": "Debug ST Program",
-              "args": ["--cyclic"]
+              "args": [
+                "--cyclic"
+              ]
             }
           }
         ]
@@ -344,11 +395,17 @@
     "taskDefinitions": [
       {
         "type": "strucpp",
-        "required": ["command"],
+        "required": [
+          "command"
+        ],
         "properties": {
           "command": {
             "type": "string",
-            "enum": ["compile", "build", "buildAndRun"],
+            "enum": [
+              "compile",
+              "build",
+              "buildAndRun"
+            ],
             "description": "The STruC++ command to run"
           },
           "file": {
@@ -366,7 +423,10 @@
       {
         "name": "strucpp-gpp",
         "owner": "strucpp",
-        "fileLocation": ["relative", "${workspaceFolder}"],
+        "fileLocation": [
+          "relative",
+          "${workspaceFolder}"
+        ],
         "pattern": {
           "regexp": "^(.+):(\\d+):(\\d+):\\s+(error|warning|note):\\s+(.+)$",
           "file": 1,
@@ -388,7 +448,14 @@
     "test": "vitest run",
     "test:watch": "vitest"
   },
+  "dependencies": {
+    "@xyflow/react": "^12.11.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
   "devDependencies": {
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
     "@types/vscode": "^1.82.0",
     "@vscode/vsce": "^3.0.0",
     "esbuild": "^0.24.0",

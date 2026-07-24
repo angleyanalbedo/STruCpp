@@ -33,6 +33,18 @@ await esbuild.build({
   outfile: "./out/server.js",
 });
 
+// React Flow-based OpenPLC LD/FBD Webview bundle.
+await esbuild.build({
+  bundle: true,
+  platform: "browser",
+  target: "ES2022",
+  format: "iife",
+  sourcemap: !production,
+  minify: production,
+  entryPoints: ["./out/client/src/plcopen/webview/main.js"],
+  outfile: "./out/plcopen-webview.js",
+});
+
 // Browser server bundle (Web Worker — used by Monaco-based editors
 // like openplc-editor and openplc-web).  The strucpp package is
 // pure-by-default (Node-only helpers live in the `strucpp/node`

@@ -31,6 +31,7 @@ import {
   unforceAllCommand,
 } from "./force-variable.js";
 import { Xml2StWrapper } from "./plcopen/xml2st-wrapper.js";
+import { OpenPlcDiagramEditorProvider } from "./plcopen/openplc-diagram-editor.js";
 import { LibrariesChangedNotification } from "../../shared/protocol.js";
 
 let client: LanguageClient | undefined;
@@ -47,6 +48,14 @@ function updateStatusBar(item: vscode.StatusBarItem, explorer: StlibExplorer): v
 }
 
 export function activate(context: ExtensionContext): void {
+  context.subscriptions.push(
+    vscode.window.registerCustomEditorProvider(
+      OpenPlcDiagramEditorProvider.viewType,
+      new OpenPlcDiagramEditorProvider(context),
+      { supportsMultipleEditorsPerDocument: true },
+    ),
+  );
+
   // Prefer bundled server (esbuild output), fall back to tsc output
   const bundledServer = context.asAbsolutePath(
     path.join("out", "server.js"),
