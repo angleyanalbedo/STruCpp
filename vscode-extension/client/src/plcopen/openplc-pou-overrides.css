@@ -17,6 +17,25 @@ body,
   background-color: var(--vscode-editor-background, #ffffff) !important;
 }
 
+/* The standalone editor normally adds a `.dark` class to activate the light
+ * alternatives. VS Code instead exposes `vscode-dark`, so remap the default
+ * neutral text/SVG utilities directly to the host foreground color. This is
+ * what keeps contact, coil and function-block labels/lines visible. */
+[class~='text-neutral-1000'],
+[class~='text-neutral-950'],
+[class~='fill-neutral-1000'],
+[class~='stroke-neutral-1000'] {
+  color: var(--vscode-foreground, #1f1f1f) !important;
+}
+
+[class~='fill-neutral-1000'] {
+  fill: var(--vscode-foreground, #1f1f1f) !important;
+}
+
+[class~='stroke-neutral-1000'] {
+  stroke: var(--vscode-foreground, #1f1f1f) !important;
+}
+
 .react-flow,
 .react-flow__renderer,
 .react-flow__pane {
