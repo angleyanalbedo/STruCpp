@@ -1,0 +1,35 @@
+/* Use the host editor theme instead of the standalone OpenPLC white/dark
+ * palette. VS Code exposes these variables to webviews. */
+html,
+body,
+#root {
+  background-color: var(--vscode-editor-background, #ffffff) !important;
+  color: var(--vscode-foreground, #1f1f1f);
+}
+
+/* OpenPLC components use Tailwind's white/neutral surfaces extensively.
+ * Remap only those surface utility classes in this webview so dialogs,
+ * variable panels and graphical nodes follow the active VS Code theme. */
+[class~='bg-white'],
+[class~='dark:bg-neutral-950'],
+[class~='bg-neutral-50'],
+[class~='dark:bg-neutral-900'] {
+  background-color: var(--vscode-editor-background, #ffffff) !important;
+}
+
+.react-flow,
+.react-flow__renderer,
+.react-flow__pane {
+  background-color: var(--vscode-editor-background, #ffffff) !important;
+}
+
+/* Keep the original OpenPLC borders and handle appearance. React Flow assigns
+ * z-indexes from insertion order; a nearby block can otherwise paint over a
+ * variable label. The variable remains a normal bordered node, but its label
+ * is always readable above the block body. */
+.react-flow__node-input-variable,
+.react-flow__node-output-variable,
+.react-flow__node-inout-variable,
+.react-flow__node-variable {
+  z-index: 10 !important;
+}

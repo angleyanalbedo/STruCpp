@@ -6,6 +6,7 @@ import { createRoot } from "react-dom/client";
 import "@xyflow/react/dist/style.css";
 import "./src/frontend/components/_atoms/react-flow/style.css";
 import "./src/backend/shared/styles/globals.css";
+import "../../openplc-pou-overrides.css";
 
 import { PlatformProvider } from "./src/middleware/shared/providers";
 import { GraphicalEditor } from "./src/frontend/components/_features/[workspace]/editor/graphical";
@@ -93,7 +94,7 @@ function OpenPlcPouEditor({ pou }: { pou: PLCPou }) {
   const language = pou.body.language as "ld" | "fbd";
   return (
     <PlatformProvider ports={platformPorts}>
-      <main className="flex h-screen w-screen overflow-hidden bg-white text-neutral-1000 dark:bg-neutral-950 dark:text-neutral-100">
+      <main className="flex h-screen w-screen overflow-hidden bg-[var(--vscode-editor-background)] text-[var(--vscode-foreground)]">
         <aside className="flex w-12 shrink-0 flex-col items-center gap-2 border-r border-neutral-200 bg-neutral-50 py-2 dark:border-neutral-800 dark:bg-neutral-900">
           {language === "ld" ? <LadderToolbox /> : <FBDToolbox />}
         </aside>
