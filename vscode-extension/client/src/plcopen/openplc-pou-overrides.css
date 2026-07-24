@@ -36,6 +36,41 @@ body,
   stroke: var(--vscode-foreground, #1f1f1f) !important;
 }
 
+/* Text entry in graphical nodes is rendered as an overlay on the symbol.
+ * Remove browser/Tailwind input chrome so it does not appear as a second box
+ * around contact, coil, variable or block labels. */
+#root input[type='text'],
+#root input:not([type]),
+#root textarea {
+  border: 0 !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+#root input[type='text']:focus,
+#root input:not([type]):focus,
+#root textarea:focus {
+  border: 0 !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+/* Rung title/comment bar. The original editor distinguishes this strip with
+ * neutral-50/neutral-900; keep that distinction when the VS Code theme does
+ * not use OpenPLC's `.dark` class. */
+[aria-label='Rung header'] {
+  background-color: var(
+    --vscode-editorWidget-background,
+    var(--vscode-sideBar-background, #f3f3f3)
+  ) !important;
+  border-color: var(--vscode-editorWidget-border, transparent) !important;
+}
+
+[aria-label='Rung header'] textarea {
+  background: transparent !important;
+  border: 0 !important;
+}
+
 .react-flow,
 .react-flow__renderer,
 .react-flow__pane {
