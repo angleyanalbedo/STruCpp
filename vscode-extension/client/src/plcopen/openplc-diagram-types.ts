@@ -11,6 +11,7 @@ export interface DiagramPosition {
 export interface DiagramVariable {
   name: string;
   type: string;
+  class?: string;
   initializer?: string;
   address?: string;
   declaration: string;
