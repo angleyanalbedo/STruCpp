@@ -39,17 +39,37 @@ body,
 /* Text entry in graphical nodes is rendered as an overlay on the symbol.
  * Remove browser/Tailwind input chrome so it does not appear as a second box
  * around contact, coil, variable or block labels. */
-#root input[type='text'],
-#root input:not([type]),
-#root textarea {
+.react-flow input[type='text'],
+.react-flow input:not([type]),
+.react-flow textarea,
+[aria-label='Rung header'] textarea {
   border: 0 !important;
   box-shadow: none !important;
   outline: none !important;
 }
 
-#root input[type='text']:focus,
-#root input:not([type]):focus,
-#root textarea:focus {
+/* Pin variables are identifiers, not comments. The upstream shared
+ * HighlightedTextArea is a textarea, so constrain only graphical-node
+ * instances to one line and prevent its auto-height logic from wrapping the
+ * value over the function-block body. */
+.react-flow textarea {
+  white-space: nowrap !important;
+  overflow-x: hidden !important;
+  overflow-y: hidden !important;
+  word-break: keep-all !important;
+}
+
+/* Function-block instance names (for example T1) sit in their own explicit
+ * overlay. Do not select or reposition the React Flow node itself. */
+.openplc-block-instance-label {
+  z-index: 20 !important;
+  overflow: visible !important;
+}
+
+.react-flow input[type='text']:focus,
+.react-flow input:not([type]):focus,
+.react-flow textarea:focus,
+[aria-label='Rung header'] textarea:focus {
   border: 0 !important;
   box-shadow: none !important;
   outline: none !important;
@@ -69,6 +89,14 @@ body,
 [aria-label='Rung header'] textarea {
   background: transparent !important;
   border: 0 !important;
+}
+
+/* A few upstream SVG icons use `inherit`/`current` as presentation-attribute
+ * values. Those are not valid SVG paint keywords; use the inherited text
+ * color explicitly so the table/code conversion icons render correctly. */
+[fill='inherit'],
+[fill='current'] {
+  fill: currentColor !important;
 }
 
 .react-flow,
