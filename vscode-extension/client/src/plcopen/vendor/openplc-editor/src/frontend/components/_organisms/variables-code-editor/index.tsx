@@ -184,7 +184,7 @@ const VariablesCodeEditor = ({
           inlineSuggest: { enabled: false },
           quickSuggestions: false,
         }}
-        theme={shouldUseDarkMode ? 'openplc-dark' : 'openplc-light'}
+        theme={shouldUseDarkMode ? 'vs-dark' : 'vs'}
       />
     </div>
   )

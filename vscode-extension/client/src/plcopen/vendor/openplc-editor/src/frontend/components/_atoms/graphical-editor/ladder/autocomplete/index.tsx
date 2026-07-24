@@ -70,7 +70,8 @@ const VariablesBlockAutoComplete = forwardRef<HTMLDivElement, VariablesBlockAuto
         return
       }
       let cancelled = false
-      void getScopeCompletions(pouName, valueToSearch, expectedType).then((items) => {
+      const localVariables = pous.find((pou) => pou.name === pouName)?.interface?.variables ?? []
+      void getScopeCompletions(pouName, valueToSearch, expectedType, localVariables).then((items) => {
         if (!cancelled) setCandidates(items)
       })
       return () => {

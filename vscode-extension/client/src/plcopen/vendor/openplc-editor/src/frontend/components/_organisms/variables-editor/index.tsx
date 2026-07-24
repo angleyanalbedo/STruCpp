@@ -364,9 +364,22 @@ const VariablesEditor = ({ name: propName, isActive: _isActive = true }: Variabl
       if (!success) return
     }
 
+    if (value === 'code') {
+      const currentPou = useOpenPLCStore
+        .getState()
+        .project.data.pous.find((candidate) => candidate.name === editor.meta.name)
+      const generatedCode = generateIecVariablesToString(currentPou?.interface?.variables ?? [])
+      setEditorCode(generatedCode)
+      updateModelVariables({
+        display: 'code',
+        code: generatedCode,
+      })
+      return
+    }
+
     updateModelVariables({
       display: value,
-      code: value === 'code' ? editorCode : undefined,
+      code: undefined,
     })
   }
 
