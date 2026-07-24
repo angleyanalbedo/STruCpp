@@ -2,6 +2,7 @@
 import * as esbuild from "esbuild";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -41,9 +42,55 @@ await esbuild.build({
   format: "iife",
   sourcemap: !production,
   minify: production,
-  entryPoints: ["./out/client/src/plcopen/webview/main.js"],
+  entryPoints: ["./client/src/plcopen/vendor/openplc-editor/pou-webview-entry.tsx"],
   outfile: "./out/plcopen-webview.js",
+  alias: {
+    "@root": path.resolve(
+      __dirname,
+      "client",
+      "src",
+      "plcopen",
+      "vendor",
+      "openplc-editor",
+      "src",
+    ),
+    "strucpp/dist/browser-server.js?url": path.resolve(
+      __dirname,
+      "client",
+      "src",
+      "plcopen",
+      "vendor",
+      "openplc-editor",
+      "vscode-empty-worker-url.ts",
+    ),
+  },
+  loader: {
+    ".ttf": "dataurl",
+  },
+  define: {
+    "process.env.NODE_ENV": JSON.stringify(production ? "production" : "development"),
+  },
 });
+
+// Expand the vendored OpenPLC Tailwind directives after esbuild has combined
+// the original global and React Flow styles.
+const openplcCss = path.resolve(__dirname, "out", "plcopen-webview.css");
+const openplcCssBuilt = path.resolve(__dirname, "out", "plcopen-webview.tailwind.css");
+execFileSync(
+  process.execPath,
+  [
+    path.resolve(__dirname, "node_modules", "tailwindcss", "lib", "cli.js"),
+    "-c",
+    path.resolve(__dirname, "tailwind.openplc.cjs"),
+    "-i",
+    openplcCss,
+    "-o",
+    openplcCssBuilt,
+    ...(production ? ["--minify"] : []),
+  ],
+  { stdio: "inherit" },
+);
+fs.renameSync(openplcCssBuilt, openplcCss);
 
 // Browser server bundle (Web Worker — used by Monaco-based editors
 // like openplc-editor and openplc-web).  The strucpp package is

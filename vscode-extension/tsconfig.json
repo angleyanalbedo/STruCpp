@@ -11,12 +11,7 @@
     "sourceMap": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "baseUrl": ".",
-    "paths": {
-      "@openplc-ladder/*": [
-        "client/src/plcopen/webview/openplc-ladder/*"
-      ]
-    }
+    "baseUrl": "."
   },
   "include": [
     "client/src/**/*",
@@ -25,6 +20,7 @@
   ],
   "exclude": [
     "node_modules",
-    "out"
+    "out",
+    "client/src/plcopen/vendor"
   ]
 }

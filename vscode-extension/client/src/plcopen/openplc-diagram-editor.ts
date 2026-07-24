@@ -4,15 +4,11 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as vscode from "vscode";
-import { parseOpenPlcDiagram } from "./openplc-diagram-parser.js";
-import type { OpenPlcDiagramDocument } from "./openplc-diagram-types.js";
 
 class OpenPlcDiagramCustomDocument implements vscode.CustomDocument {
   constructor(
     public readonly uri: vscode.Uri,
-    public readonly source: string,
-    public readonly model: OpenPlcDiagramDocument | undefined,
-    public readonly errors: string[],
+    public source: string,
   ) {}
 
   dispose(): void {}
@@ -45,8 +41,8 @@ function htmlForReactDocument(
     vscode.Uri.joinPath(context.extensionUri, "out", "plcopen-webview.css"),
   );
   const payload = jsonForScript({
-    model: document.model,
-    errors: document.errors,
+    source: document.source,
+    kind: path.extname(document.uri.fsPath).toLowerCase() === ".fbd" ? "FBD" : "LD",
     fileName: path.basename(document.uri.fsPath),
   });
 
@@ -82,16 +78,7 @@ export class OpenPlcDiagramEditorProvider
     _token: vscode.CancellationToken,
   ): Thenable<OpenPlcDiagramCustomDocument> {
     return fs.readFile(uri.fsPath, "utf8").then((source) => {
-      const kind = path.extname(uri.fsPath).toLowerCase() === ".fbd" ? "FBD" : "LD";
-      const result = parseOpenPlcDiagram(source, kind);
-      return new OpenPlcDiagramCustomDocument(
-        uri,
-        source,
-        result.document,
-        result.errors.map(
-          (error) => `${error.line ? `Line ${error.line}: ` : ""}${error.message}`,
-        ),
-      );
+      return new OpenPlcDiagramCustomDocument(uri, source);
     });
   }
 
@@ -106,21 +93,50 @@ export class OpenPlcDiagramEditorProvider
       webviewPanel.webview,
       document,
     );
+    webviewPanel.webview.onDidReceiveMessage((message: unknown) => {
+      if (
+        !message ||
+        typeof message !== "object" ||
+        (message as { type?: unknown }).type !== "update" ||
+        typeof (message as { source?: unknown }).source !== "string"
+      ) {
+        return;
+      }
+      const nextSource = (message as { source: string }).source;
+      if (nextSource === document.source) return;
+      const previousSource = document.source;
+      const applySource = (source: string) => {
+        document.source = source;
+      };
+      applySource(nextSource);
+      this.changeEmitter.fire({
+        document,
+        label: "Edit OpenPLC POU",
+        undo: () => {
+          applySource(previousSource);
+          return Promise.resolve();
+        },
+        redo: () => {
+          applySource(nextSource);
+          return Promise.resolve();
+        },
+      });
+    });
   }
 
   saveCustomDocument(
-    _document: OpenPlcDiagramCustomDocument,
+    document: OpenPlcDiagramCustomDocument,
     _cancellation: vscode.CancellationToken,
   ): Thenable<void> {
-    return Promise.resolve();
+    return fs.writeFile(document.uri.fsPath, document.source, "utf8");
   }
 
   saveCustomDocumentAs(
-    _document: OpenPlcDiagramCustomDocument,
-    _destination: vscode.Uri,
+    document: OpenPlcDiagramCustomDocument,
+    destination: vscode.Uri,
     _cancellation: vscode.CancellationToken,
   ): Thenable<void> {
-    return Promise.reject(new Error("OpenPLC diagram editing is read-only in this MVP."));
+    return fs.writeFile(destination.fsPath, document.source, "utf8");
   }
 
   revertCustomDocument(
@@ -135,7 +151,7 @@ export class OpenPlcDiagramEditorProvider
     context: vscode.CustomDocumentBackupContext,
     _cancellation: vscode.CancellationToken,
   ): Thenable<vscode.CustomDocumentBackup> {
-    return fs.copyFile(document.uri.fsPath, context.destination.fsPath).then(() => ({
+    return fs.writeFile(context.destination.fsPath, document.source, "utf8").then(() => ({
       id: context.destination.toString(),
       delete: () => fs.rm(context.destination.fsPath, { force: true }),
     }));

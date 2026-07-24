@@ -4,8 +4,8 @@ import { fileURLToPath, URL } from "node:url";
 export default defineConfig({
   resolve: {
     alias: {
-      "@openplc-ladder": fileURLToPath(
-        new URL("./client/src/plcopen/webview/openplc-ladder", import.meta.url),
+      "@root": fileURLToPath(
+        new URL("./client/src/plcopen/vendor/openplc-editor/src", import.meta.url),
       ),
     },
   },
