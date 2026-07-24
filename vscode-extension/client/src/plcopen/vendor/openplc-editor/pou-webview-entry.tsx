@@ -6,7 +6,14 @@ import { createRoot } from "react-dom/client";
 import "@xyflow/react/dist/style.css";
 import "./src/frontend/components/_atoms/react-flow/style.css";
 import "./src/backend/shared/styles/globals.css";
+import "./src/frontend/components/_features/[workspace]/editor/monaco/configs/languages/st/st.register";
+import "./src/frontend/components/_features/[workspace]/editor/monaco/configs/themes/openplc/openplc.register";
 import "../../openplc-pou-overrides.css";
+import {
+  registerVsCodeScopedQueryAdapter,
+  VsCodePouActivityBar,
+  VsCodePouInteractionBridge,
+} from "./vscode-bridge";
 
 import { PlatformProvider } from "./src/middleware/shared/providers";
 import { GraphicalEditor } from "./src/frontend/components/_features/[workspace]/editor/graphical";
@@ -16,8 +23,6 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "./src/frontend/components/_organisms/panel";
-import { LadderToolbox } from "./src/frontend/components/_organisms/workspace-activity-bar/ladder-toolbox";
-import { FBDToolbox } from "./src/frontend/components/_organisms/workspace-activity-bar/fbd-toolbox";
 import { openPLCStoreBase } from "./src/frontend/store";
 import { CreatePLCGraphicalObject } from "./src/frontend/store/slices/tabs/utils";
 import { parseGraphicalPouFromString } from "./src/frontend/utils/PLC/pou-text-parser";
@@ -90,13 +95,16 @@ function initializeOpenPLC(pou: PLCPou) {
   );
 }
 
+registerVsCodeScopedQueryAdapter();
+
 function OpenPlcPouEditor({ pou }: { pou: PLCPou }) {
   const language = pou.body.language as "ld" | "fbd";
   return (
     <PlatformProvider ports={platformPorts}>
       <main className="flex h-screen w-screen overflow-hidden bg-[var(--vscode-editor-background)] text-[var(--vscode-foreground)]">
-        <aside className="flex w-12 shrink-0 flex-col items-center gap-2 border-r border-neutral-200 bg-neutral-50 py-2 dark:border-neutral-800 dark:bg-neutral-900">
-          {language === "ld" ? <LadderToolbox /> : <FBDToolbox />}
+        <VsCodePouInteractionBridge />
+        <aside className="flex w-12 shrink-0 flex-col items-center border-r border-neutral-200 bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900">
+          <VsCodePouActivityBar />
         </aside>
         <ResizablePanelGroup direction="vertical" className="min-w-0 flex-1">
           <ResizablePanel id="variableTablePanel" defaultSize={25} minSize={20} collapsible>

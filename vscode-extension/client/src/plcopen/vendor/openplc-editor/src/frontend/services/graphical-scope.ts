@@ -94,28 +94,9 @@ export async function getScopeCompletions(
   pouName: string,
   value: string,
   expectedType?: string,
-  fallbackVariables: PLCVariable[] = [],
 ): Promise<ScopeCompletion[]> {
   const api = getScopedQueryApi()
-  const localFallback = (): ScopeCompletion[] => {
-    const { anchor, segment } = splitExpression(value)
-    // The flat POU variable table cannot resolve members. Leave dotted
-    // expressions to the LSP instead of suggesting an incorrect symbol.
-    if (anchor) return []
-    const needle = segment.toLowerCase()
-    return fallbackVariables
-      .filter((variable) => variable.name.toLowerCase().includes(needle))
-      .filter(
-        (variable) =>
-          !expectedType || validateVariableType(variable.type.value, expectedType).isValid,
-      )
-      .map((variable) => ({
-        label: variable.name,
-        insertText: variable.name,
-        type: variable.type.value,
-      }))
-  }
-  if (!api) return localFallback()
+  if (!api) return []
 
   const { anchor, segment } = splitExpression(value)
   const items = await api.completeInScope(pouName, anchor)
@@ -140,7 +121,7 @@ export async function getScopeCompletions(
   // BOOL). Drill one level into the matching instance/struct variables and
   // surface their compatible members. Gated on "no direct hits" + capped, so
   // the extra LSP round-trips stay rare and bounded.
-  if (!expectedType || direct.length > 0) return direct.length > 0 ? direct : localFallback()
+  if (!expectedType || direct.length > 0) return direct
 
   const expandable = matching.filter((item) => item.type && isDerivedType(item.type)).slice(0, SCOPE_EXPAND_LIMIT)
   const expanded = await Promise.all(
@@ -152,8 +133,7 @@ export async function getScopeCompletions(
         .map((m) => ({ label: `${instance.label}.${m.label}`, insertText: memberAnchor + m.label, type: m.type }))
     }),
   )
-  const expandedItems = expanded.flat()
-  return expandedItems.length > 0 ? expandedItems : localFallback()
+  return expanded.flat()
 }
 
 /**

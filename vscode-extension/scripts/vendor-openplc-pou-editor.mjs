@@ -18,6 +18,8 @@ const update = process.argv.includes("--update");
 
 const roots = [
   "frontend/components/_features/[workspace]/editor/graphical/index.tsx",
+  "frontend/components/_features/[workspace]/editor/monaco/configs/languages/st/st.register.ts",
+  "frontend/components/_features/[workspace]/editor/monaco/configs/themes/openplc/openplc.register.ts",
   "frontend/components/_organisms/variables-editor/index.tsx",
   "frontend/components/_organisms/panel/index.tsx",
   "frontend/components/_organisms/workspace-activity-bar/ladder-toolbox.tsx",
