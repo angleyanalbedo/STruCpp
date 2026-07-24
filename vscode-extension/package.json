@@ -39,6 +39,17 @@
           ".IL"
         ],
         "configuration": "./language-configuration.json"
+      },
+      {
+        "id": "plcopen-xml",
+        "aliases": [
+          "PLCopen XML",
+          "LD/FBD Diagram"
+        ],
+        "extensions": [
+          ".plcopen"
+        ],
+        "configuration": "./language-configuration.json"
       }
     ],
     "grammars": [
@@ -115,6 +126,18 @@
         "command": "strucpp.unforceAll",
         "title": "STruC++: Unforce All Variables",
         "icon": "$(unlock)"
+      },
+      {
+        "command": "strucpp.diagram.convertToSt",
+        "title": "STruC++: Convert Diagram to ST",
+        "icon": "$(file-code)",
+        "enablement": "editorLangId == plcopen-xml"
+      },
+      {
+        "command": "strucpp.diagram.openAsText",
+        "title": "STruC++: Open Diagram as Text (XML)",
+        "icon": "$(symbol-text)",
+        "enablement": "editorLangId == plcopen-xml"
       }
     ],
     "views": {
@@ -149,6 +172,11 @@
           "command": "strucpp.compileLib",
           "group": "navigation@3",
           "when": "editorLangId == structured-text"
+        },
+        {
+          "command": "strucpp.diagram.convertToSt",
+          "group": "navigation@1",
+          "when": "editorLangId == plcopen-xml"
         }
       ],
       "debug/variables/context": [
@@ -239,6 +267,16 @@
           "type": "boolean",
           "default": false,
           "description": "Automatically format Structured Text files on save"
+        },
+        "strucpp.xml2stPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to xml2st binary (auto-detected from OpenPLC Editor install if empty)"
+        },
+        "strucpp.diagram.autoSync": {
+          "type": "boolean",
+          "default": true,
+          "description": "Auto-sync PLCopen XML to ST on save"
         }
       }
     },

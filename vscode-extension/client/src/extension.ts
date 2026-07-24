@@ -30,6 +30,7 @@ import {
   unforceVariableCommand,
   unforceAllCommand,
 } from "./force-variable.js";
+import { Xml2StWrapper } from "./plcopen/xml2st-wrapper.js";
 import { LibrariesChangedNotification } from "../../shared/protocol.js";
 
 let client: LanguageClient | undefined;
@@ -152,6 +153,49 @@ export function activate(context: ExtensionContext): void {
     // Test Explorer integration
     const testController = new StrucppTestController(context, client!);
     context.subscriptions.push(testController);
+
+    // PLCopen XML / LD/FBD diagram support
+    const xml2st = new Xml2StWrapper(context);
+    context.subscriptions.push(
+      vscode.commands.registerCommand("strucpp.diagram.convertToSt", async () => {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor || editor.document.languageId !== "plcopen-xml") {
+          vscode.window.showWarningMessage("Open a PLCopen XML (.plcopen) file first.");
+          return;
+        }
+
+        const content = editor.document.getText();
+        const result = await xml2st.convertXmlToSt(content, true);
+
+        if (result.success) {
+          const stUri = editor.document.uri.with({
+            path: editor.document.uri.path.replace(/\.plcopen$/i, ".st"),
+          });
+          const doc = await vscode.workspace.openTextDocument({
+            content: result.stContent,
+            language: "structured-text",
+          });
+          await vscode.window.showTextDocument(doc, vscode.ViewColumn.Beside);
+        } else {
+          vscode.window.showErrorMessage(
+            `Conversion failed: ${result.errors.join(", ")}`,
+          );
+        }
+      }),
+      vscode.commands.registerCommand("strucpp.diagram.openAsText", async () => {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor || editor.document.languageId !== "plcopen-xml") {
+          return;
+        }
+        // Open the same file in a text editor
+        await vscode.commands.executeCommand(
+          "vscode.openWith",
+          editor.document.uri,
+          "default",
+        );
+      }),
+      xml2st,
+    );
 
     // Format on save: trigger document formatting when strucpp.formatOnSave is enabled
     context.subscriptions.push(

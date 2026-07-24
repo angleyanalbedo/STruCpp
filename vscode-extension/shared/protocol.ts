@@ -228,3 +228,24 @@ export const IsWrappedTypeRequest = new RequestType<
   IsWrappedTypeResponse,
   void
 >("strucpp/isWrappedType");
+
+// ---------------------------------------------------------------------------
+// strucpp/convertXmlToSt — convert PLCopen XML to Structured Text
+// ---------------------------------------------------------------------------
+
+export interface ConvertXmlToStParams {
+  xmlContent: string;
+  keepStructs?: boolean;
+}
+
+export interface ConvertXmlToStResponse {
+  success: boolean;
+  stContent: string;
+  errors: CompileError[];
+}
+
+export const ConvertXmlToStRequest = new RequestType<
+  ConvertXmlToStParams,
+  ConvertXmlToStResponse,
+  void
+>("strucpp/convertXmlToSt");
