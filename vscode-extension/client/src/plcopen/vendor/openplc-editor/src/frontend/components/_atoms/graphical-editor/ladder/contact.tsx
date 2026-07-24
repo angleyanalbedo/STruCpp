@@ -178,6 +178,17 @@ const Contact = (block: ContactProps) => {
     }
   }
 
+  const handleElementDoubleClick = (event: React.MouseEvent) => {
+    if (isDebuggerVisible) return
+    event.preventDefault()
+    event.stopPropagation()
+    const { project, ladderFlows, modalActions } = useOpenPLCStore.getState()
+    const { node } = getLadderPouVariablesRungNodeAndEdges(pouName, project.data.pous, ladderFlows, {
+      nodeId: id,
+    })
+    if (node) modalActions.openModal('contact-ladder-element', node)
+  }
+
   return (
     <div
       className={cn({
@@ -193,6 +204,7 @@ const Contact = (block: ContactProps) => {
         )}
         style={{ width: DEFAULT_CONTACT_BLOCK_WIDTH, height: DEFAULT_CONTACT_BLOCK_HEIGHT }}
         onClick={isDebuggerVisible ? handleClick : undefined}
+        onDoubleClick={handleElementDoubleClick}
       >
         {contact.svg(wrongVariable, debuggerStrokeColor)}
         <div className='absolute left-1/2 w-[72px] -translate-x-1/2' ref={inputWrapperRef}>

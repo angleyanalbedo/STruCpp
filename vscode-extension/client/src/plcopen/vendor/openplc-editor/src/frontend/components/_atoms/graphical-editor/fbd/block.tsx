@@ -345,6 +345,16 @@ const Block = <T extends object>(block: BlockProps<T>) => {
   const [wrongVariable, setWrongVariable] = useState<boolean>(false)
   const [hoveringBlock, setHoveringBlock] = useState(false)
 
+  const handleElementDoubleClick = (event: React.MouseEvent) => {
+    event.preventDefault()
+    event.stopPropagation()
+    const { project, fbdFlows, modalActions } = useOpenPLCStore.getState()
+    const { node } = getFBDPouVariablesRungNodeAndEdges(pouName, project.data.pous, fbdFlows, {
+      nodeId: id,
+    })
+    if (node) modalActions.openModal('block-fbd-element', node)
+  }
+
   const { rung, node, variables } = getFBDPouVariablesRungNodeAndEdges(pouName, pous, flow ? [flow] : [], {
     nodeId: id ?? '',
   })
@@ -746,6 +756,7 @@ const Block = <T extends object>(block: BlockProps<T>) => {
       })}
       onMouseEnter={() => setHoveringBlock(true)}
       onMouseLeave={() => setHoveringBlock(false)}
+      onDoubleClick={handleElementDoubleClick}
     >
       {data.hasDivergence && hoveringBlock && (
         <div

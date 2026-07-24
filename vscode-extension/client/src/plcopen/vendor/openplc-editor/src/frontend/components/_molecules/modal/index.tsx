@@ -31,29 +31,32 @@ const ModalContent = forwardRef<
   ComponentPropsWithoutRef<typeof PrimitiveDialog.Content> & { onClose?: () => void }
 >(({ className, onClose, ...props }, ref) => (
   <ModalPortal>
-    <PrimitiveDialog.Title /> {/* This is to ensure the title is rendered correctly */}
-    <ModalOverlay />
-    <PrimitiveDialog.Content
-      ref={ref}
-      aria-describedby={undefined}
-      className={cn(
-        'box fixed inset-0 z-50 m-auto flex h-[500px] w-[525px] flex-col gap-4 rounded-lg bg-white p-4 outline-none dark:bg-neutral-950',
-        className,
-      )}
-      {...props}
-    >
-      {props.children}
-      {onClose && (
-        <PrimitiveDialog.Close
-          onClick={() => {
-            if (onClose) onClose()
-          }}
-          className='absolute right-4 top-4 disabled:pointer-events-none'
-        >
-          <CloseIcon className='h-4 w-4 stroke-brand hover:cursor-pointer' />
-        </PrimitiveDialog.Close>
-      )}
-    </PrimitiveDialog.Content>
+    {/* Radix Portal slots onto exactly one child in the Webview's Radix
+        version. Keep overlay and content under one real element. */}
+    <div>
+      <ModalOverlay />
+      <PrimitiveDialog.Content
+        ref={ref}
+        aria-describedby={undefined}
+        className={cn(
+          'box fixed inset-0 z-50 m-auto flex h-[500px] w-[525px] flex-col gap-4 rounded-lg bg-white p-4 outline-none dark:bg-neutral-950',
+          className,
+        )}
+        {...props}
+      >
+        {props.children}
+        {onClose && (
+          <PrimitiveDialog.Close
+            onClick={() => {
+              if (onClose) onClose()
+            }}
+            className='absolute right-4 top-4 disabled:pointer-events-none'
+          >
+            <CloseIcon className='h-4 w-4 stroke-brand hover:cursor-pointer' />
+          </PrimitiveDialog.Close>
+        )}
+      </PrimitiveDialog.Content>
+    </div>
   </ModalPortal>
 ))
 

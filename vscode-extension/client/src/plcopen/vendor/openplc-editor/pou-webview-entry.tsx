@@ -12,7 +12,6 @@ import "../../openplc-pou-overrides.css";
 import {
   registerVsCodeScopedQueryAdapter,
   VsCodePouActivityBar,
-  VsCodePouInteractionBridge,
 } from "./vscode-bridge";
 
 import { PlatformProvider } from "./src/middleware/shared/providers";
@@ -102,7 +101,6 @@ function OpenPlcPouEditor({ pou }: { pou: PLCPou }) {
   return (
     <PlatformProvider ports={platformPorts}>
       <main className="flex h-screen w-screen overflow-hidden bg-[var(--vscode-editor-background)] text-[var(--vscode-foreground)]">
-        <VsCodePouInteractionBridge />
         <aside className="flex w-12 shrink-0 flex-col items-center border-r border-neutral-200 bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900">
           <VsCodePouActivityBar />
         </aside>

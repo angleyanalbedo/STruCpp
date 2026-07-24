@@ -177,6 +177,17 @@ const Coil = (block: CoilProps) => {
     }
   }
 
+  const handleElementDoubleClick = (event: React.MouseEvent) => {
+    if (isDebuggerVisible) return
+    event.preventDefault()
+    event.stopPropagation()
+    const { project, ladderFlows, modalActions } = useOpenPLCStore.getState()
+    const { node } = getLadderPouVariablesRungNodeAndEdges(pouName, project.data.pous, ladderFlows, {
+      nodeId: id,
+    })
+    if (node) modalActions.openModal('coil-ladder-element', node)
+  }
+
   return (
     <div
       className={cn({
@@ -192,6 +203,7 @@ const Coil = (block: CoilProps) => {
         )}
         style={{ width: DEFAULT_COIL_BLOCK_WIDTH, height: DEFAULT_COIL_BLOCK_HEIGHT }}
         onClick={isDebuggerVisible ? handleClick : undefined}
+        onDoubleClick={handleElementDoubleClick}
       >
         {coil.svg(wrongVariable, debuggerFillColor)}
         <div className='absolute left-1/2 w-[72px] -translate-x-1/2' ref={inputWrapperRef}>

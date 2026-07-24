@@ -364,10 +364,24 @@ const VariablesEditor = ({ name: propName, isActive: _isActive = true }: Variabl
       if (!success) return
     }
 
-    updateModelVariables({
-      display: value,
-      code: value === 'code' ? editorCode : undefined,
+    if (value === 'code') {
+      const currentPou = useOpenPLCStore
+        .getState()
+        .project.data.pous.find((candidate) => candidate.name === editor.meta.name)
+      const code = generateIecVariablesToString(currentPou?.interface?.variables ?? [])
+      setEditorCode(code)
+      setEditorVariables({ display: 'code' })
+      updateModelVariablesForName(editor.meta.name, { display: 'code', code })
+      return
+    }
+
+    setEditorVariables({
+      display: 'table',
+      selectedRow: ROWS_NOT_SELECTED.toString(),
+      classFilter: 'All',
+      description: '',
     })
+    updateModelVariablesForName(editor.meta.name, { display: 'table' })
   }
 
   const handleRearrangeVariables = (index: number, row?: number) => {

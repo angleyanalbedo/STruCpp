@@ -417,6 +417,16 @@ const Block = <T extends object>(block: BlockProps<T>) => {
   const [wrongVariable, setWrongVariable] = useState<boolean>(false)
   const [hoveringBlock, setHoveringBlock] = useState(false)
 
+  const handleElementDoubleClick = (event: React.MouseEvent) => {
+    event.preventDefault()
+    event.stopPropagation()
+    const { project, ladderFlows, modalActions } = useOpenPLCStore.getState()
+    const { node } = getLadderPouVariablesRungNodeAndEdges(pouName, project.data.pous, ladderFlows, {
+      nodeId: id,
+    })
+    if (node) modalActions.openModal('block-ladder-element', node)
+  }
+
   const connectedOutputNames = useMemo(() => {
     const names = new Set<string>()
     if (Array.isArray(data.connectedVariables)) {
@@ -836,6 +846,7 @@ const Block = <T extends object>(block: BlockProps<T>) => {
       })}
       onMouseEnter={() => setHoveringBlock(true)}
       onMouseLeave={() => setHoveringBlock(false)}
+      onDoubleClick={handleElementDoubleClick}
     >
       {data.hasDivergence && hoveringBlock && (
         <div
